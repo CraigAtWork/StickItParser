@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript Patterns</title>
+    <!-- style sheets -->
+    <style>
+        .bold {
+            font-weight:bold;
+        }
+        .profitable {
+            font-weight: bold;
+            color: darkgreen;
+        }
+        .unprofitable {
+            font-weight: bold;
+            color: darkred;
+        }
+    </style>
+    <!-- include source files here... -->
+    <script type="text/javascript" src="lib/underscore.js"></script>
+    <script type="text/javascript" src="lib/jquery.js"></script>
+    <script type="text/javascript" src="lib/backbone.js"></script>
+    <script type="text/javascript" src="lib/underscore.mixin.deepExtend.js"></script>
+    <script type="text/javascript" src="lib/backbone.marionette-noamd.js"></script>
+    <script type="text/javascript" src="lib/deep-model.js"></script>
+    <script type="text/javascript" src="lib/handlebars.js"></script>
+    <script type="text/javascript" src="lib/backbone.stickit.js"></script>
+    <script type="text/javascript" src="../backbone.stickit.parser.js"></script>
+    <script type="text/javascript" src="lib/backbone.computedfields.js"></script>
+</head>
+<body>
+<h1>Some Javascript Patterns</h1>
+<p><span class="bold">Look at the console output</span></p>
+
+
+<!-- location of the application in the DOM -->
+<div id="app-hook"/>
+
+<!-- Normally this would be a separate file loaded with RequireJS -->
+<!-- We could use model binding for the company and employee info, but not the states info -->
+<!-- id="company-display-name-id"  -->
+<script id="sample-template" type="text/x-handlebars-template">
+    <div>
+        <h2>Company Information</h2>
+        <p><span data-bind="value:companyName|+formatName,class:isProfitable|+chooseClass"/></p>
+        <div>
+            Company name: <input id="company-name-id" type="text" data-bind="value:companyName"/>
+        </div>
+        <div>
+            Revenue: <input id="company-revenue-id" type="text"/>
+        </div>
+        <div>
+            Expenses: <input id="company-expenses-id" type="text" data-bind="value:expenses,disabled:isProfitable"/>
+        </div>
+        <div>
+            Profit: <span id="company-profit-id" data-bind="value:profit,class:isProfitable|+chooseClass"/>
+        </div>
+        <div class="boxspace">
+            <input id="sack-ceo-id" type="button" value="Sack CEO"/>
+        </div>
+        <div>
+            Choose VP's: <select id="stooges-id"></select>
+        </div>
+    </div>
+</script>
+
+
+<script>
+
+
+    ////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////
+    //
+    //  SOME MODEL AND VIEW CODE TO TEST IT ALL OUT
+    //
+    ////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////
+
+    var CompanyModel = Backbone.DeepModel.extend({
+        _super: Backbone.DeepModel,
+        name: 'company', // added as a tag so we can do the stickIt declarative binding for multiple models
+        urlRoot: '/data/company',
+
+        /**
+         * Initialize the company model.
+         *
+         * @param options
+         */
+        initialize: function(options) {
+            console.log("invoking CompanyModel.initialize()");
+            this.computedFields = new Backbone.ComputedFields(this);
+        },
+        computed: {
+            profit: {
+                depends:['revenue','expenses'],
+                get: function(fields) {
+                    var theProfit = undefined;
+                    if (!_.isUndefined(fields['revenue']) && !_.isUndefined(fields['expenses'])) {
+                        theProfit = fields['revenue'] - fields['expenses'];
+                    }
+                    return theProfit;
+                }
+            },
+            isProfitable: {
+                depends:['profit'],
+                get: function(fields) {
+                    console.log("isProfitable.get(): calculating isProfitable: profit = " + fields['profit']);
+                    return (fields['profit'] > 0);
+                }
+            }
+        }
+    });
+
+
+    var MyView = Marionette.ItemView.extend({
+        el: '#app-hook',
+        template: Handlebars.compile($("#sample-template").html()),
+        initialize: function() {
+
+            this.company = new CompanyModel({
+                "id": "100",
+                "companyName": "Duck Enterprises",
+                "companyAddress": {
+                    "line1": "123 Maple Street",
+                    "city": "Super Town",
+                    "state": "GA",
+                    "zip": "94043"
+                },
+                "fooList":[{"a":"AAA"},{"a":"BBB"}],
+                "revenue":"1000000",
+                "expenses":"50000",
+                "showRevenue":"true"
+            });
+
+        },
+        onRender: function() {
+            //var bindOptions = { modelName: 'company'};
+            //this.stickitParse({optionalModel: this.company, optionalBindOptions: bindOptions});
+            // Call stickitParse() as a replacement for stickit().
+            this.stickitParse({optionalModel: this.company});
+        },
+        onClose: function() {
+            this.unstickit(this.company);
+        },
+        // StickIt bindings (standard way)
+        bindings: {
+            '#company-revenue-id': 'revenue'
+        },
+        // StickIt callbacks
+        formatName: function(value, options) {
+            // todo: value is array for multiple observe attributes, single element for single observe attribute
+            // todo: update the parser to support multiple and single observe attributes
+            return value + ' FOO FOO';
+        },
+        chooseClass: function(isProfitable) { // isProfitable is the "value" in the StickIt API
+            if (isProfitable) {
+                return "profitable"; // class name
+            } else {
+                return "unprofitable"; // class name
+            }
+        }
+
+    });
+
+    var myView = new MyView();
+
+    myView.render();
+
+</script>
+
+</body>
+</html>
