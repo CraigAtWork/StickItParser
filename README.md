@@ -14,3 +14,7 @@ Use this package to add markup declared bindings.
 ```
 
 The binding syntax has a Knockout flavor to it. See the examples for more depth.
+
+todo:
+1) unit tests
+
